@@ -1,19 +1,19 @@
-name: Matrix Build Example
+name: Job and Step Demo
 
-on: push
+on: [push]
 
 jobs:
-  test-matrix:
+  demo-job:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [16, 18, 20]
 
     steps:
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Print Node Version
-        run: node -v
+      - name: Run a multi-line script
+        run: |
+          echo "🔧 This is step 1"
+          echo "✅ All steps run in sequence"
+
+      - name: Another step
+        run: echo "🚀 End of job"
