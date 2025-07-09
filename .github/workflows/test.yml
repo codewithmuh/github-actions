@@ -2,15 +2,14 @@ name: Daily Cron Job Demo
 
 on:
   schedule:
-    - cron: '*/1 * * * *'  # every 2 minutes
-# on: push
+    - cron: '*/5 * * * *'  # every 5 minutes
 
 jobs:
-  run-daily-script:
+  run-script:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Run script every 2 minutes
-        run: echo "Hello! This script runs every 2 minutes."
+      - name: Echo message
+        run: echo "Hello! This script runs every 5 minutes."
