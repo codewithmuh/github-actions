@@ -29,8 +29,11 @@ jobs:
             --acl public-read
 
       - name: Invalidate CloudFront (optional)
-        if: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID != '' }}
+        env:
+          DIST_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+        if: env.DIST_ID != ''
         run: |
           aws cloudfront create-invalidation \
-            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --distribution-id $DIST_ID \
             --paths "/*"
+
