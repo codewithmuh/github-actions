@@ -1,9 +1,9 @@
 name: Daily Cron Job Demo
 
-# on:
-#   schedule:
-#     - cron: '*/1 * * * *'  # every 2 minutes
-on: push
+on:
+  schedule:
+    - cron: '*/1 * * * *'  # every 2 minutes
+# on: push
 
 jobs:
   run-daily-script:
