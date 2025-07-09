@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'section-6-aws-deploy/deploy-static-s3/dist/**'
 
 jobs:
   deploy-to-s3:
