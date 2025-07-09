@@ -1,0 +1,25 @@
+# name: Weekly Release Tag
+
+# on:
+#   schedule:
+#     - cron: '0 0 * * 0'  # every Sunday at midnight UTC
+
+# jobs:
+#   tag-release:
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       - name: Checkout repo
+#         uses: actions/checkout@v3
+
+#       - name: Create Release Tag
+#         id: tag
+#         run: |
+#           TAG="release-$(date +'%Y%m%d')"
+#           git config user.name "github-actions"
+#           git config user.email "github-actions@github.com"
+#           git tag $TAG
+#           git push origin $TAG
+
+#       - name: Output tag name
+#         run: echo "Tagged with ${{ steps.tag.outputs.tag }}"

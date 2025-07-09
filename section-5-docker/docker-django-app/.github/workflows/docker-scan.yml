@@ -1,0 +1,28 @@
+# name: Docker Security Scan
+
+# on:
+#   push:
+#     paths:
+#       - 'docker-django-app/**'
+
+# jobs:
+#   scan-image:
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
+
+#       - name: Set up Docker
+#         uses: docker/setup-buildx-action@v3
+
+#       - name: Build image
+#         run: |
+#           docker build -t django-scan ./docker-django-app
+
+#       - name: Scan with Trivy
+#         uses: aquasecurity/trivy-action@v0.15.0
+#         with:
+#           image-ref: django-scan
+#           format: table
+#           exit-code: 0

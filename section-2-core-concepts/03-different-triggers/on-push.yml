@@ -1,0 +1,12 @@
+# name: Trigger on Push
+
+# on:
+#   push:
+#     branches:
+#       - main
+
+# jobs:
+#   push-job:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - run: echo "📦 Code was pushed to main"

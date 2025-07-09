@@ -1,0 +1,12 @@
+# name: Trigger on Pull Request
+
+# on:
+#   pull_request:
+#     branches:
+#       - main
+
+# jobs:
+#   pr-job:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - run: echo "🔍 A pull request was opened"
