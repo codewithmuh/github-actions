@@ -20,6 +20,10 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-south-1
+          
+      - name: List files before sync
+        run: ls -la section-6-aws-deploy/deploy-static-s3/dist/
+          
 
       - name: Sync dist/ to S3
         run: |
