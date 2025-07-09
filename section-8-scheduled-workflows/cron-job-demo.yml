@@ -2,15 +2,14 @@ name: Daily Cron Job Demo
 
 on:
   schedule:
-  # - cron: '0 0 * * *'  # every day at 00:00 UTC
-    - cron: '*/2 * * * *'  # every 2 min
+    - cron: '*/5 * * * *'  # every 5 minutes
 
 jobs:
-  run-daily-script:
+  run-script:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Run daily script
-        run: echo "Hello! This script runs every day at midnight."
+      - name: Echo message
+        run: echo "Hello! This script runs every 5 minutes."

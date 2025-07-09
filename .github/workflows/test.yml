@@ -1,15 +1,19 @@
-name: Daily Cron Job Demo
+name: Matrix Build Example
 
-on:
-  schedule:
-    - cron: '*/5 * * * *'  # every 5 minutes
+on: push
 
 jobs:
-  run-script:
+  test-matrix:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
+    strategy:
+      matrix:
+        node-version: [16, 18, 20]
 
-      - name: Echo message
-        run: echo "Hello! This script runs every 5 minutes."
+    steps:
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Print Node Version
+        run: node -v
