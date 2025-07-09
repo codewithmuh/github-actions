@@ -2,8 +2,7 @@ name: Daily Cron Job Demo
 
 on:
   schedule:
-  # - cron: '0 0 * * *'  # every day at 00:00 UTC
-    - cron: '*/2 * * * *'  # every 2 min
+    - cron: '*/2 * * * *'  # every 2 minutes
 
 jobs:
   run-daily-script:
