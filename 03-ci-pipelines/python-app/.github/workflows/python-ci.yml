@@ -1,0 +1,254 @@
+name: Python CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths: ['03-ci-pipelines/python-app/**']
+  pull_request:
+    branches: [ main ]
+    paths: ['03-ci-pipelines/python-app/**']
+
+defaults:
+  run:
+    working-directory: 03-ci-pipelines/python-app
+
+jobs:
+  # Code quality and linting
+  lint:
+    runs-on: ubuntu-latest
+    name: Code Quality Check
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Run Black formatter check
+        run: black --check --diff .
+      
+      - name: Run isort import sorting check
+        run: isort --check-only --diff .
+      
+      - name: Run Flake8 linting
+        run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+      
+      - name: Run MyPy type checking
+        run: mypy . --ignore-missing-imports
+
+  # Testing with multiple Python versions
+  test:
+    runs-on: ubuntu-latest
+    needs: lint
+    
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.10', '3.11', '3.12']
+    
+    name: Test (Python ${{ matrix.python-version }})
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Run tests with coverage
+        run: |
+          pytest --cov=. --cov-report=xml --cov-report=html --cov-report=term
+      
+      - name: Upload coverage to Codecov
+        if: matrix.python-version == '3.11'
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./03-ci-pipelines/python-app/coverage.xml
+          flags: python
+          name: python-coverage
+
+  # Security scanning
+  security:
+    runs-on: ubuntu-latest
+    name: Security Scan
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install safety bandit
+      
+      - name: Run Safety check for vulnerabilities
+        run: safety check
+      
+      - name: Run Bandit security linter
+        run: bandit -r . -f json -o bandit-report.json || true
+      
+      - name: Upload Bandit report
+        uses: actions/upload-artifact@v3
+        with:
+          name: bandit-report
+          path: 03-ci-pipelines/python-app/bandit-report.json
+
+  # Build and package
+  build:
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    name: Build Application
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Create distribution package
+        run: |
+          mkdir -p dist
+          cp -r . dist/
+          cd dist
+          # Remove development files
+          rm -rf __pycache__ .pytest_cache htmlcov
+          rm -f .coverage coverage.xml bandit-report.json
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: python-app-${{ github.sha }}
+          path: 03-ci-pipelines/python-app/dist/
+          retention-days: 7
+
+  # Integration tests
+  integration:
+    runs-on: ubuntu-latest
+    needs: build
+    name: Integration Tests
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Start Flask application
+        run: |
+          python app.py &
+          sleep 5
+        env:
+          FLASK_ENV: testing
+      
+      - name: Run integration tests
+        run: |
+          curl -f http://localhost:5000/health || exit 1
+          curl -f http://localhost:5000/ || exit 1
+          curl -f http://localhost:5000/api/users || exit 1
+          
+          # Test API endpoints
+          response=$(curl -s http://localhost:5000/api/users/1)
+          echo $response | grep -q "Alice Johnson" || exit 1
+      
+      - name: Stop Flask application
+        run: pkill -f "python app.py" || true
+
+  # Performance testing
+  performance:
+    runs-on: ubuntu-latest
+    needs: integration
+    name: Performance Tests
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          sudo apt-get update
+          sudo apt-get install -y apache2-utils
+      
+      - name: Start Flask application
+        run: |
+          gunicorn --bind 0.0.0.0:5000 app:app &
+          sleep 5
+      
+      - name: Run load tests
+        run: |
+          # Simple load test with Apache Bench
+          ab -n 100 -c 10 http://localhost:5000/
+          ab -n 50 -c 5 http://localhost:5000/api/users
+      
+      - name: Stop application
+        run: pkill -f gunicorn || true
+
+  # Deployment (only on main branch)
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [build, integration, security, performance]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+    name: Deploy to Production
+    
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: python-app-${{ github.sha }}
+          path: ./app
+      
+      - name: Deploy application
+        run: |
+          echo "🚀 Deploying Python Flask application..."
+          echo "📦 Artifact downloaded and ready for deployment"
+          echo "✅ Deployment completed successfully!"
+          # Add your actual deployment commands here

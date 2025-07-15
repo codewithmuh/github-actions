@@ -1,0 +1,58 @@
+name: Basic Slack Notification Example
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # Simple hello world notification
+  hello-world:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Say Hello to Slack
+        uses: ./08-real-world-projects/slack-notifier-action
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          message: "👋 Hello World from GitHub Actions!"
+          channel: "#general"
+
+  # Build and notify
+  build-and-notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Build application
+        run: |
+          echo "Building application..."
+          # Your build commands here
+          sleep 2
+          echo "Build completed!"
+      
+      - name: Notify build success
+        if: success()
+        uses: ./08-real-world-projects/slack-notifier-action
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          message: "🎉 Build completed successfully!"
+          status: "success"
+          channel: "#ci-cd"
+          username: "Build Bot"
+          icon-emoji: ":hammer_and_wrench:"
+      
+      - name: Notify build failure
+        if: failure()
+        uses: ./08-real-world-projects/slack-notifier-action
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          message: "❌ Build failed! Please check the logs."
+          status: "failure"
+          channel: "#alerts"
+          username: "Alert Bot"
+          icon-emoji: ":warning:"

@@ -1,0 +1,30 @@
+name: Hello World Slack Notification
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      message:
+        description: 'Custom message to send'
+        required: false
+        default: '👋 Hello World from GitHub Actions!'
+
+jobs:
+  hello-slack:
+    runs-on: ubuntu-latest
+    name: Send Hello World to Slack
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Send Hello World message
+        uses: ./08-real-world-projects/slack-notifier-action
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          message: ${{ github.event.inputs.message || '👋 Hello World from GitHub Actions!' }}
+          status: "success"
+          channel: "#general"
+          username: "Hello Bot"
+          icon-emoji: ":wave:"

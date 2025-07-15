@@ -1,0 +1,213 @@
+name: Docker Build and Push
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths: ['04-docker-workflows/docker-node-app/**']
+  pull_request:
+    branches: [ main ]
+    paths: ['04-docker-workflows/docker-node-app/**']
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/docker-node-app
+
+defaults:
+  run:
+    working-directory: 04-docker-workflows/docker-node-app
+
+jobs:
+  # Build and test the application
+  test:
+    runs-on: ubuntu-latest
+    name: Test Application
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 04-docker-workflows/docker-node-app/package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run tests
+        run: npm test
+
+  # Build Docker image
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    name: Build Docker Image
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Log in to Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+      
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: 04-docker-workflows/docker-node-app
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILDTIME=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+            VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
+            REVISION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.revision'] }}
+
+  # Security scanning
+  security-scan:
+    runs-on: ubuntu-latest
+    needs: build
+    name: Security Scan
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Build image for scanning
+        uses: docker/build-push-action@v5
+        with:
+          context: 04-docker-workflows/docker-node-app
+          load: true
+          tags: docker-node-app:scan
+          cache-from: type=gha
+      
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'docker-node-app:scan'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+      
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+      
+      - name: Run Snyk to check Docker image for vulnerabilities
+        uses: snyk/actions/docker@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          image: docker-node-app:scan
+
+  # Integration testing with Docker
+  integration-test:
+    runs-on: ubuntu-latest
+    needs: build
+    name: Integration Tests
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Build test image
+        uses: docker/build-push-action@v5
+        with:
+          context: 04-docker-workflows/docker-node-app
+          load: true
+          tags: docker-node-app:test
+          cache-from: type=gha
+      
+      - name: Run container
+        run: |
+          docker run -d --name test-container -p 3000:3000 docker-node-app:test
+          sleep 10
+      
+      - name: Test container health
+        run: |
+          # Test health endpoint
+          curl -f http://localhost:3000/health || exit 1
+          
+          # Test main endpoint
+          response=$(curl -s http://localhost:3000/)
+          echo "$response" | grep -q "Hello from Dockerized Node.js App" || exit 1
+          
+          # Test API endpoint
+          curl -f http://localhost:3000/api/info || exit 1
+          
+          echo "✅ All integration tests passed!"
+      
+      - name: Check container logs
+        if: always()
+        run: docker logs test-container
+      
+      - name: Stop and remove container
+        if: always()
+        run: |
+          docker stop test-container || true
+          docker rm test-container || true
+
+  # Deploy to staging
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: [build, security-scan, integration-test]
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+    name: Deploy to Staging
+    
+    steps:
+      - name: Deploy to staging
+        run: |
+          echo "🚀 Deploying Docker image to staging..."
+          echo "📦 Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:develop"
+          echo "🌐 Staging URL: https://staging.example.com"
+          echo "✅ Staging deployment completed!"
+          # Add your actual staging deployment commands here
+
+  # Deploy to production
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: [build, security-scan, integration-test]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+    name: Deploy to Production
+    
+    steps:
+      - name: Deploy to production
+        run: |
+          echo "🚀 Deploying Docker image to production..."
+          echo "📦 Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+          echo "🌐 Production URL: https://example.com"
+          echo "✅ Production deployment completed!"
+          # Add your actual production deployment commands here

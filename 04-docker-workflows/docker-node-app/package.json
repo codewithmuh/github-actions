@@ -1,0 +1,30 @@
+{
+  "name": "docker-node-app",
+  "version": "1.0.0",
+  "description": "Node.js application for Docker CI/CD demonstration",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "jest",
+    "docker:build": "docker build -t docker-node-app .",
+    "docker:run": "docker run -p 3000:3000 docker-node-app"
+  },
+  "keywords": [
+    "nodejs",
+    "docker",
+    "github-actions"
+  ],
+  "author": "GitHub Actions Mastery",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "helmet": "^7.1.0",
+    "morgan": "^1.10.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3",
+    "nodemon": "^3.0.2"
+  }
+}

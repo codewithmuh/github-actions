@@ -1,0 +1,144 @@
+name: Advanced Slack Notification Examples
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  release:
+    types: [published]
+  schedule:
+    - cron: '0 9 * * 1'  # Monday 9 AM
+
+jobs:
+  # Deployment pipeline with notifications
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Notify deployment start
+        uses: ./08-real-world-projects/slack-notifier-action
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          message: "🚀 Starting production deployment..."
+          status: "success"
+          channel: "#deployments"
+          username: "Deploy Bot"
+          icon-emoji: ":rocket:"
+      
+      - name: Deploy to production
+        run: |
+          echo "Deploying to production..."
+          # Your deployment commands
+          sleep 5
+          echo "Deployment completed!"
+      
+      - name: Run health checks
+        run: |
+          echo "Running health checks..."
+          # Health check commands
+          sleep 2
+          echo "All systems healthy!"
+      
+      - name: Notify deployment success
+        if: success()
+        uses: ./08-real-world-projects/slack-notifier-action
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          message: "✅ Production deployment successful! 🎉"
+          status: "success"
+          channel: "#deployments"
+          username: "Deploy Bot"
+          icon-emoji: ":white_check_mark:"
+      
+      - name: Notify deployment failure
+        if: failure()
+        uses: ./08-real-world-projects/slack-notifier-action
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          message: "🚨 Production deployment failed! Immediate attention required."
+          status: "failure"
+          channel: "#alerts"
+          username: "Alert Bot"
+          icon-emoji: ":rotating_light:"
+
+  # Release notifications
+  release-notification:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    
+    steps:
+      - name: Notify new release
+        uses: ./08-real-world-projects/slack-notifier-action
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          message: "🎉 New release published: ${{ github.event.release.tag_name }}"
+          status: "success"
+          channel: "#releases"
+          username: "Release Bot"
+          icon-emoji: ":tada:"
+
+  # Weekly status report
+  weekly-report:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    
+    steps:
+      - name: Generate weekly report
+        run: |
+          echo "Generating weekly report..."
+          # Generate report logic
+          echo "Report generated!"
+      
+      - name: Send weekly report
+        uses: ./08-real-world-projects/slack-notifier-action
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          message: "📊 Weekly project status report is ready!"
+          status: "success"
+          channel: "#reports"
+          username: "Report Bot"
+          icon-emoji: ":bar_chart:"
+
+  # Pull request notifications
+  pr-notification:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: Notify PR opened
+        if: github.event.action == 'opened'
+        uses: ./08-real-world-projects/slack-notifier-action
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          message: "🔍 New pull request opened: ${{ github.event.pull_request.title }}"
+          status: "success"
+          channel: "#code-review"
+          username: "PR Bot"
+          icon-emoji: ":eyes:"
+
+  # Multi-environment deployment
+  deploy-staging:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop'
+    
+    steps:
+      - name: Deploy to staging
+        run: |
+          echo "Deploying to staging..."
+          sleep 3
+      
+      - name: Notify staging deployment
+        uses: ./08-real-world-projects/slack-notifier-action
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          message: "🧪 Staging deployment completed - ready for testing!"
+          status: "success"
+          channel: "#staging"
+          username: "Staging Bot"
+          icon-emoji: ":test_tube:"

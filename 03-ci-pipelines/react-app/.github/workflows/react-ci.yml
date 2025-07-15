@@ -1,0 +1,335 @@
+name: React CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths: ['03-ci-pipelines/react-app/**']
+  pull_request:
+    branches: [ main ]
+    paths: ['03-ci-pipelines/react-app/**']
+
+defaults:
+  run:
+    working-directory: 03-ci-pipelines/react-app
+
+jobs:
+  # Install and cache dependencies
+  install:
+    runs-on: ubuntu-latest
+    name: Install Dependencies
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 03-ci-pipelines/react-app/package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Cache node_modules
+        uses: actions/cache@v3
+        with:
+          path: 03-ci-pipelines/react-app/node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('03-ci-pipelines/react-app/package-lock.json') }}
+
+  # Code quality checks
+  lint:
+    runs-on: ubuntu-latest
+    needs: install
+    name: Code Quality Check
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 03-ci-pipelines/react-app/package-lock.json
+      
+      - name: Restore node_modules cache
+        uses: actions/cache@v3
+        with:
+          path: 03-ci-pipelines/react-app/node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('03-ci-pipelines/react-app/package-lock.json') }}
+      
+      - name: Install dependencies (if cache miss)
+        run: npm ci
+      
+      - name: Run ESLint
+        run: npm run lint
+      
+      - name: Check Prettier formatting
+        run: npm run format:check
+
+  # Testing with multiple Node.js versions
+  test:
+    runs-on: ubuntu-latest
+    needs: install
+    
+    strategy:
+      matrix:
+        node-version: [16, 18, 20]
+    
+    name: Test (Node.js ${{ matrix.node-version }})
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: 03-ci-pipelines/react-app/package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run tests with coverage
+        run: npm test
+        env:
+          CI: true
+      
+      - name: Upload coverage to Codecov
+        if: matrix.node-version == '18'
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./03-ci-pipelines/react-app/coverage/lcov.info
+          flags: react
+          name: react-coverage
+
+  # Build application
+  build:
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    name: Build Application
+    
+    strategy:
+      matrix:
+        environment: [development, production]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 03-ci-pipelines/react-app/package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build for ${{ matrix.environment }}
+        run: npm run build
+        env:
+          NODE_ENV: ${{ matrix.environment }}
+          REACT_APP_API_URL: ${{ matrix.environment == 'production' && 'https://api.example.com' || 'http://localhost:5000' }}
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: react-build-${{ matrix.environment }}-${{ github.sha }}
+          path: 03-ci-pipelines/react-app/build/
+          retention-days: 7
+
+  # Security audit
+  security:
+    runs-on: ubuntu-latest
+    needs: install
+    name: Security Audit
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 03-ci-pipelines/react-app/package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run npm audit
+        run: npm audit --audit-level high
+      
+      - name: Run Snyk security scan
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+  # Bundle analysis
+  bundle-analysis:
+    runs-on: ubuntu-latest
+    needs: build
+    name: Bundle Analysis
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 03-ci-pipelines/react-app/package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Install bundle analyzer
+        run: npm install --save-dev webpack-bundle-analyzer
+      
+      - name: Build and analyze bundle
+        run: |
+          npm run build
+          npx webpack-bundle-analyzer build/static/js/*.js --report --mode static --report-filename bundle-report.html
+      
+      - name: Upload bundle analysis
+        uses: actions/upload-artifact@v3
+        with:
+          name: bundle-analysis-${{ github.sha }}
+          path: 03-ci-pipelines/react-app/bundle-report.html
+
+  # E2E testing (basic)
+  e2e:
+    runs-on: ubuntu-latest
+    needs: build
+    name: End-to-End Tests
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 03-ci-pipelines/react-app/package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Install serve
+        run: npm install -g serve
+      
+      - name: Build application
+        run: npm run build
+      
+      - name: Start application
+        run: |
+          serve -s build -l 3000 &
+          sleep 10
+      
+      - name: Run basic E2E tests
+        run: |
+          # Basic smoke tests
+          curl -f http://localhost:3000 || exit 1
+          
+          # Check if main content loads
+          response=$(curl -s http://localhost:3000)
+          echo "$response" | grep -q "React CI/CD Demo" || exit 1
+          echo "$response" | grep -q "Welcome to React CI/CD Demo" || exit 1
+          
+          echo "✅ E2E smoke tests passed!"
+
+  # Performance testing
+  performance:
+    runs-on: ubuntu-latest
+    needs: build
+    name: Performance Tests
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 03-ci-pipelines/react-app/package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Install Lighthouse CI
+        run: npm install -g @lhci/cli@0.12.x
+      
+      - name: Build application
+        run: npm run build
+      
+      - name: Run Lighthouse CI
+        run: |
+          lhci autorun --upload.target=temporary-public-storage --collect.staticDistDir=build
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+
+  # Deploy to staging
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: [build, security, e2e]
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+    name: Deploy to Staging
+    
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: react-build-development-${{ github.sha }}
+          path: ./build
+      
+      - name: Deploy to staging
+        run: |
+          echo "🚀 Deploying React app to staging..."
+          echo "📦 Build artifacts ready for deployment"
+          echo "🌐 Staging URL: https://staging.example.com"
+          echo "✅ Staging deployment completed!"
+          # Add your actual staging deployment commands here
+
+  # Deploy to production
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: [build, security, e2e, performance]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+    name: Deploy to Production
+    
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: react-build-production-${{ github.sha }}
+          path: ./build
+      
+      - name: Deploy to production
+        run: |
+          echo "🚀 Deploying React app to production..."
+          echo "📦 Production build artifacts ready"
+          echo "🌐 Production URL: https://example.com"
+          echo "✅ Production deployment completed!"
+          # Add your actual production deployment commands here
+          
+      - name: Notify deployment success
+        run: |
+          echo "📢 Production deployment successful!"
+          echo "🎉 React app is now live!"
