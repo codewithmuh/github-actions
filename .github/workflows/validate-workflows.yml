@@ -1,0 +1,82 @@
+name: Validate Workflows
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate-yaml:
+    runs-on: ubuntu-latest
+    name: Validate YAML Syntax
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Install yamllint
+        run: pip install yamllint
+      
+      - name: Validate YAML files
+        run: |
+          find . -name "*.yml" -o -name "*.yaml" | while read file; do
+            echo "Validating $file"
+            yamllint "$file" || exit 1
+          done
+      
+      - name: Validate GitHub Actions workflows
+        run: |
+          # Check for common GitHub Actions syntax issues
+          find . -path "*/.github/workflows/*.yml" -o -path "*/.github/workflows/*.yaml" | while read file; do
+            echo "Checking workflow syntax: $file"
+            # Basic syntax validation (GitHub Actions specific)
+            if ! grep -q "^on:" "$file"; then
+              echo "Error: Missing 'on:' trigger in $file"
+              exit 1
+            fi
+            if ! grep -q "^jobs:" "$file"; then
+              echo "Error: Missing 'jobs:' section in $file"
+              exit 1
+            fi
+          done
+
+  check-links:
+    runs-on: ubuntu-latest
+    name: Check Documentation Links
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Check internal links
+        run: |
+          # Check for broken internal links in README files
+          find . -name "README.md" | while read file; do
+            echo "Checking links in $file"
+            # Extract relative links and check if files exist
+            grep -o '\[.*\](\..*\.md)' "$file" | sed 's/.*](\(.*\))/\1/' | while read link; do
+              if [ ! -f "$(dirname "$file")/$link" ] && [ ! -f "$link" ]; then
+                echo "Warning: Broken link in $file: $link"
+              fi
+            done
+          done
+
+  lint-markdown:
+    runs-on: ubuntu-latest
+    name: Lint Markdown Files
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Lint markdown files
+        uses: DavidAnson/markdownlint-cli2-action@v14
+        with:
+          globs: '**/*.md'
+          config: |
+            {
+              "MD013": false,
+              "MD033": false,
+              "MD041": false
+            }

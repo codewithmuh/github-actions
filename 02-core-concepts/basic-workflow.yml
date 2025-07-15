@@ -1,0 +1,26 @@
+name: Basic Workflow Structure
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # Simple job with basic steps
+  hello-world:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Print greeting
+        run: echo "👋 Hello, GitHub Actions!"
+      
+      - name: Show repository info
+        run: |
+          echo "📂 Repository: ${{ github.repository }}"
+          echo "🌿 Branch: ${{ github.ref_name }}"
+          echo "📝 Commit: ${{ github.sha }}"
+          echo "👤 Author: ${{ github.actor }}"

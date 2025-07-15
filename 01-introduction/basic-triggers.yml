@@ -1,0 +1,48 @@
+name: Different Trigger Examples
+
+# Multiple trigger types demonstration
+on:
+  # Trigger on push to main branch
+  push:
+    branches: [ main ]
+  
+  # Trigger on pull requests to main
+  pull_request:
+    branches: [ main ]
+  
+  # Manual trigger (workflow_dispatch)
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+  
+  # Scheduled trigger (runs every day at 9 AM UTC)
+  schedule:
+    - cron: '0 9 * * *'
+
+jobs:
+  trigger-demo:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Show trigger information
+        run: |
+          echo "🚀 Workflow triggered by: ${{ github.event_name }}"
+          echo "📂 Repository: ${{ github.repository }}"
+          echo "🌿 Branch: ${{ github.ref_name }}"
+          echo "👤 Actor: ${{ github.actor }}"
+      
+      - name: Manual trigger input
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo "🎯 Manual trigger detected!"
+          echo "🌍 Environment: ${{ github.event.inputs.environment }}"

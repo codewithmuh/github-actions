@@ -1,0 +1,25 @@
+name: Hello World Workflow
+
+# This workflow runs when code is pushed to any branch
+on: push
+
+jobs:
+  say-hello:
+    # Use the latest Ubuntu runner
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Step 1: Print a simple greeting
+      - name: Print greeting
+        run: echo "👋 Hello, GitHub Actions!"
+      
+      # Step 2: Show some system information
+      - name: Show runner information
+        run: |
+          echo "🖥️  Runner OS: ${{ runner.os }}"
+          echo "🏠 Home directory: $HOME"
+          echo "📅 Current date: $(date)"
+      
+      # Step 3: List current directory
+      - name: List files
+        run: ls -la

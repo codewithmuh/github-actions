@@ -1,0 +1,85 @@
+name: Job Dependencies and Conditions
+
+on:
+  push:
+    branches: [ main, develop ]
+
+jobs:
+  # Job 1: Build phase
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      build-status: ${{ steps.build-step.outputs.status }}
+      build-time: ${{ steps.build-step.outputs.time }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Build application
+        id: build-step
+        run: |
+          echo "🔨 Building application..."
+          sleep 2
+          echo "status=success" >> $GITHUB_OUTPUT
+          echo "time=$(date)" >> $GITHUB_OUTPUT
+          echo "✅ Build completed successfully!"
+
+  # Job 2: Test phase (depends on build)
+  test:
+    runs-on: ubuntu-latest
+    needs: build
+    if: needs.build.outputs.build-status == 'success'
+    
+    strategy:
+      matrix:
+        test-type: [unit, integration, e2e]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Run ${{ matrix.test-type }} tests
+        run: |
+          echo "🧪 Running ${{ matrix.test-type }} tests..."
+          echo "📅 Build completed at: ${{ needs.build.outputs.build-time }}"
+          sleep 1
+          echo "✅ ${{ matrix.test-type }} tests passed!"
+
+  # Job 3: Security scan (runs in parallel with tests)
+  security-scan:
+    runs-on: ubuntu-latest
+    needs: build
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Run security scan
+        run: |
+          echo "🔒 Running security scan..."
+          sleep 1
+          echo "✅ No security vulnerabilities found!"
+
+  # Job 4: Deploy (only on main branch, after tests pass)
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [build, test, security-scan]
+    if: github.ref == 'refs/heads/main' && success()
+    environment: production
+    
+    steps:
+      - name: Deploy to production
+        run: |
+          echo "🚀 Deploying to production..."
+          echo "📦 Build status: ${{ needs.build.outputs.build-status }}"
+          echo "✅ Deployment completed!"
+      
+      - name: Notify team
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "📢 Deployment successful! Team notified."
+          else
+            echo "❌ Deployment failed! Team alerted."
+          fi

@@ -1,0 +1,113 @@
+name: Matrix Build Strategies
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # Basic matrix build
+  basic-matrix:
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node-version: [16, 18, 20]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      
+      - name: Display environment
+        run: |
+          echo "🖥️  OS: ${{ matrix.os }}"
+          echo "📦 Node.js: ${{ matrix.node-version }}"
+          node --version
+          npm --version
+
+  # Advanced matrix with includes and excludes
+  advanced-matrix:
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      fail-fast: false  # Don't cancel other jobs if one fails
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node-version: [16, 18, 20]
+        include:
+          # Add extra configurations
+          - os: ubuntu-latest
+            node-version: 21
+            experimental: true
+          - os: macos-latest
+            node-version: 18
+            special-config: true
+        exclude:
+          # Remove specific combinations
+          - os: windows-latest
+            node-version: 16
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      
+      - name: Show matrix configuration
+        run: |
+          echo "🖥️  OS: ${{ matrix.os }}"
+          echo "📦 Node.js: ${{ matrix.node-version }}"
+          echo "🧪 Experimental: ${{ matrix.experimental }}"
+          echo "⚙️  Special config: ${{ matrix.special-config }}"
+      
+      - name: Run tests
+        run: |
+          if [ "${{ matrix.experimental }}" == "true" ]; then
+            echo "🧪 Running experimental tests..."
+          else
+            echo "✅ Running standard tests..."
+          fi
+        shell: bash
+
+  # Dynamic matrix from JSON
+  dynamic-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    
+    steps:
+      - name: Set matrix
+        id: set-matrix
+        run: |
+          # In real scenarios, this could come from a file or API
+          matrix='{"include":[
+            {"os":"ubuntu-latest","version":"16","env":"dev"},
+            {"os":"ubuntu-latest","version":"18","env":"staging"},
+            {"os":"ubuntu-latest","version":"20","env":"prod"}
+          ]}'
+          echo "matrix=$matrix" >> $GITHUB_OUTPUT
+
+  # Use dynamic matrix
+  test-dynamic:
+    needs: dynamic-matrix
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix: ${{ fromJson(needs.dynamic-matrix.outputs.matrix) }}
+    
+    steps:
+      - name: Test with dynamic matrix
+        run: |
+          echo "🖥️  OS: ${{ matrix.os }}"
+          echo "📦 Version: ${{ matrix.version }}"
+          echo "🌍 Environment: ${{ matrix.env }}"
