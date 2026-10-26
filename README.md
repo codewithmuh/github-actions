@@ -1,6 +1,29 @@
 # 🚀 GitHub Actions Mastery - Complete YouTube Series
 
+<p align="center">
+  <a href="https://github.com/codewithmuh/github-actions/releases"><img src="https://img.shields.io/github/v/release/codewithmuh/github-actions?color=blue&label=version&style=flat-square" alt="GitHub Release"></a>
+  <a href="https://github.com/codewithmuh/github-actions/stargazers"><img src="https://img.shields.io/github/stars/codewithmuh/github-actions?style=flat-square" alt="Stars"></a>
+  <a href="https://github.com/codewithmuh/github-actions/network/members"><img src="https://img.shields.io/github/forks/codewithmuh/github-actions?style=flat-square" alt="Forks"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green.svg?style=flat-square" alt="License: MIT"></a>
+  <a href="https://youtube.com/@codewithmuh"><img src="https://img.shields.io/badge/YouTube-%40codewithmuh-FF0000?style=flat-square&logo=youtube&logoColor=white" alt="YouTube"></a>
+  <br>
+  <img src="https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088FF?style=flat-square&logo=github-actions&logoColor=white" alt="GitHub Actions">
+  <img src="https://img.shields.io/badge/Cloud-AWS%20Deployments-FF9900?style=flat-square&logo=amazon-aws&logoColor=white" alt="AWS Cloud">
+  <img src="https://img.shields.io/badge/Containers-Docker%20%7C%20Kubernetes-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker & Kubernetes">
+</p>
+
 Welcome to the complete GitHub Actions tutorial series! This repository contains all the code, examples, and resources from our comprehensive YouTube playlist covering GitHub Actions from beginner to advanced levels.
+
+```mermaid
+flowchart LR
+    A["01. Intro & Concepts"] --> B["02. Syntax & Matrix"]
+    B --> C["03. CI Pipelines<br/>(Node/Python/React/Django)"]
+    C --> D["04. Docker Workflows"]
+    D --> E["05. Cloud Deployments"]
+    E --> F["06. AWS EC2/S3/EKS"]
+    F --> G["07. Advanced Automation"]
+    G --> H["08. Real-World Capstones"]
+```
 
 ## 📺 YouTube Series Overview
 
